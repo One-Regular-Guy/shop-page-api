@@ -5,20 +5,21 @@ import "github.com/gin-gonic/gin"
 func Handler(c *gin.Context) {
 	var req Request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(400, ErrorResponse{Message: err.Error()})
 		return
 	}
-	if err := ServiceInstance.CheckUsername(req.Username); err != nil {
-		c.JSON(401, gin.H{"error": "Invalid credentials"})
+	if !ServiceInstance.CheckUsername(req.Username) {
+		c.JSON(401, ErrorResponse{Message: "Credentials aren't valid"})
 		return
 	}
-	c.JSON(200, gin.H{"username": req.Username})
-
-	/*token, err := Login(req.Username, req.Password)
+	if !ServiceInstance.CheckPassword(req.Username, req.Password) {
+		c.JSON(401, ErrorResponse{Message: "Credentials aren't valid"})
+		return
+	}
+	signedToken, err := ServiceInstance.ProvideToken(req.Username)
 	if err != nil {
-		c.JSON(401, gin.H{"error": "Invalid credentials"})
+		c.JSON(500, ErrorResponse{Message: "Failed to generate token"})
 		return
 	}
-
-	c.JSON(200, Response{Token: token})*/
+	c.JSON(200, Response{Token: signedToken})
 }
