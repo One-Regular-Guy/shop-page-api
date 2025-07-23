@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/One-Regular-Guy/shop-page-api/database"
 	"github.com/One-Regular-Guy/shop-page-api/login"
+	"github.com/One-Regular-Guy/shop-page-api/register"
 	"github.com/One-Regular-Guy/shop-page-api/status"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,11 +44,13 @@ func main() {
 		}
 	}(cache)
 	login.ServiceInstance = login.NewService(cache, db)
+	register.ServiceInstance = register.NewService(cache, db)
 	log.Print("Defining Server Type")
 	router := gin.Default()
 	log.Print("Registering endpoints ...")
 	router.GET("/hello", status.Handler)
 	router.POST("/login", login.Handler)
+	router.POST("/register", register.Handler)
 	log.Print("Endpoints registred ...")
 	log.Print("Starting server on port 8080")
 	err = router.Run(":8080")
