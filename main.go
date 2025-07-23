@@ -15,19 +15,25 @@ import (
 
 func main() {
 	err := godotenv.Load()
+	databaseUrl := os.Getenv("DATABASE_URL")
+	redisUrl := os.Getenv("REDIS_URL")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	if databaseUrl == "" || redisUrl == "" || redisPassword == "" {
+		log.Fatal("Environment variables DATABASE_URL, REDIS_URL, and REDIS_PASSWORD must be set")
+	}
 	if err != nil {
 		log.Print("Error loading .env file")
 	}
 	databaseCtx := context.Background()
-	pool, err := pgxpool.New(databaseCtx, os.Getenv("DATABASE_URL"))
+	pool, err := pgxpool.New(databaseCtx, databaseUrl)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
 	defer pool.Close()
 	db := database.New(pool)
 	cache := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_URL"),
-		Password: os.Getenv("REDIS_PASSWORD"),
+		Addr:     redisUrl,
+		Password: redisPassword,
 		DB:       0,
 	})
 	defer func(cache *redis.Client) {
