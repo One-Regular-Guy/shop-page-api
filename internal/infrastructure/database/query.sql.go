@@ -7,16 +7,18 @@ package database
 
 import (
 	"context"
-
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :exec
-INSERT INTO users (name, username, email, password)
-VALUES ($1, $2, $3, $4)
+INSERT INTO users (id, name, username, email, password)
+VALUES ($1, $2, $3, $4, $5)
 `
 
 type CreateUserParams struct {
+	ID       uuid.UUID
 	Name     string
 	Username string
 	Email    string
@@ -25,6 +27,7 @@ type CreateUserParams struct {
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.Exec(ctx, createUser,
+		arg.ID,
 		arg.Name,
 		arg.Username,
 		arg.Email,

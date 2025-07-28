@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"github.com/One-Regular-Guy/shop-page-api/database"
-	"github.com/One-Regular-Guy/shop-page-api/login"
-	"github.com/One-Regular-Guy/shop-page-api/register"
-	"github.com/One-Regular-Guy/shop-page-api/status"
+	"github.com/One-Regular-Guy/shop-page-api/internal/handler"
+	"github.com/One-Regular-Guy/shop-page-api/internal/infrastructure"
+	"github.com/One-Regular-Guy/shop-page-api/internal/infrastructure/database"
+	"github.com/One-Regular-Guy/shop-page-api/internal/usecase"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -28,7 +28,7 @@ func main() {
 	databaseCtx := context.Background()
 	pool, err := pgxpool.New(databaseCtx, databaseUrl)
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
+		panic("Unable to connect to database: " + err.Error())
 	}
 	defer pool.Close()
 	db := database.New(pool)
@@ -43,19 +43,40 @@ func main() {
 			log.Print(err)
 		}
 	}(cache)
-	login.ServiceInstance = login.NewService(cache, db)
-	register.ServiceInstance = register.NewService(cache, db)
-	log.Print("Defining Server Type")
+	// Remover instâncias antigas de login e register
+	// login.ServiceInstance = login.NewService(cache, db)
+	// register.ServiceInstance = register.NewService(cache, db)
+	// --- Clean Architecture: Registro ---
+	userRepo := infrastructure.NewUserRepository(cache, db)
+	registerUseCase := &usecase.RegisterUserUseCase{UserRepo: userRepo}
+	registerHandler := &handler.RegisterHandler{UseCase: registerUseCase}
+	// ---
+	// --- Clean Architecture: Login ---
+	jwtProvider, err := infrastructure.NewJWTTokenProvider()
+	if err != nil {
+		log.Fatalf("Failed to initialize JWT provider: %v", err)
+	}
+	loginUseCase := &usecase.LoginUserUseCase{UserRepo: userRepo, TokenProvider: jwtProvider}
+	loginHandler := &handler.LoginHandler{UseCase: loginUseCase}
+	// ---
 	router := gin.Default()
-	log.Print("Registering endpoints ...")
-	router.GET("/hello", status.Handler)
-	router.POST("/login", login.Handler)
-	router.POST("/register", register.Handler)
-	log.Print("Endpoints registred ...")
-	log.Print("Starting server on port 8080")
-	err = router.Run(":8080")
+	// Middleware CORS simples
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+	router.POST("/login", loginHandler.Handle)
+	router.OPTIONS("/login", func(c *gin.Context) { c.Status(204) })
+	router.POST("/register", registerHandler.Handle)
+	router.OPTIONS("/register", func(c *gin.Context) { c.Status(204) })
+	err = router.Run(":8084")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Print("Server finished Gracefully")
 }

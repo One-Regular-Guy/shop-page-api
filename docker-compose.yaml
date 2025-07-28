@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    ports:
+      - "6379:6379"
+    command: ["--requirepass", "dragonflypassword"]
+
+volumes:
+  pgdata:
